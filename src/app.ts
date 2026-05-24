@@ -1,6 +1,5 @@
 import Fastify from 'fastify'
 import { env } from '@/config/env.js'
-import { logger } from '@/shared/utils/logger.js'
 import { sendError } from '@/shared/utils/response.js'
 import { AppError } from '@/shared/errors/index.js'
 import { registerAuditHook } from '@/shared/hooks/audit.js'
@@ -18,8 +17,21 @@ import { filesRoutes } from '@/modules/files/files.routes.js'
 import { adminRoutes } from '@/modules/admin/admin.routes.js'
 
 export async function buildApp() {
+  const isDev = env.NODE_ENV === 'development'
+  const isTest = env.NODE_ENV === 'test'
+
   const app = Fastify({
-    logger: env.NODE_ENV === 'test' ? false : logger,
+    logger: isTest
+      ? false
+      : isDev
+        ? {
+            level: env.LOG_LEVEL,
+            transport: {
+              target: 'pino-pretty',
+              options: { colorize: true, translateTime: 'HH:MM:ss', ignore: 'pid,hostname' },
+            },
+          }
+        : { level: env.LOG_LEVEL },
     trustProxy: true,
     ajv: { customOptions: { removeAdditional: true, coerceTypes: true, useDefaults: true } },
   })
