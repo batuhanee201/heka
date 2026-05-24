@@ -11,6 +11,12 @@ import rateLimitPlugin from '@/plugins/rate-limit.js'
 import authPlugin from '@/plugins/auth.js'
 import multipartPlugin from '@/plugins/multipart.js'
 
+import { authRoutes } from '@/modules/auth/auth.routes.js'
+import { productRoutes } from '@/modules/product/product.routes.js'
+import { catalogRoutes } from '@/modules/catalog/catalog.routes.js'
+import { filesRoutes } from '@/modules/files/files.routes.js'
+import { adminRoutes } from '@/modules/admin/admin.routes.js'
+
 export async function buildApp() {
   const app = Fastify({
     logger: env.NODE_ENV === 'test' ? false : logger,
@@ -52,6 +58,13 @@ export async function buildApp() {
 
   // Health check
   app.get('/health', async () => ({ status: 'ok', env: env.NODE_ENV }))
+
+  // Modül rotaları
+  await app.register(authRoutes)
+  await app.register(productRoutes)
+  await app.register(catalogRoutes)
+  await app.register(filesRoutes)
+  await app.register(adminRoutes)
 
   return app
 }
