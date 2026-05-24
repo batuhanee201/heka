@@ -28,7 +28,7 @@ function hashRefreshToken(token: string): string {
 
 function toPublicUser(user: Awaited<ReturnType<AuthRepository['findUserByEmail']>>): PublicUser {
   if (!user) throw AppError.internal()
-  const { supabase_auth_id: _s, deleted_at: _d, ...pub } = user
+  const { supabase_auth_id: _s, deleted_at: _d, password_hash: _p, ...pub } = user
   return pub
 }
 

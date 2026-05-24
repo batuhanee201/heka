@@ -27,7 +27,7 @@ export interface SessionRecord {
   created_at: ISODateString
 }
 
-export type PublicUser = Omit<UserRecord, 'supabase_auth_id' | 'deleted_at'>
+export type PublicUser = Omit<UserRecord, 'supabase_auth_id' | 'deleted_at' | 'password_hash'>
 
 export interface AuthTokens {
   access_token: string
