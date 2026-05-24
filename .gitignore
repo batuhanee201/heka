@@ -1,1 +1,31 @@
 docs/
+
+# Bağımlılıklar
+node_modules/
+
+# Derleme çıktısı
+dist/
+
+# Ortam değişkenleri
+.env
+.env.local
+.env.*.local
+
+# Sistem dosyaları
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Log dosyaları
+*.log
+logs/
+
+# Test coverage
+coverage/
