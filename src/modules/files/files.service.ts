@@ -33,6 +33,10 @@ export class FilesService {
     return { ...rest, url }
   }
 
+  private sanitizeFilename(name: string): string {
+    return name.replace(/[^\w.\-]/g, '_').slice(0, 255)
+  }
+
   async upload(
     file: MultipartFile,
     userId: string,
@@ -69,7 +73,7 @@ export class FilesService {
     const record = await this.repo.create({
       bucket_name: bucket,
       storage_path: storagePath,
-      original_filename: file.filename,
+      original_filename: this.sanitizeFilename(file.filename),
       mime_type: mimeType,
       size_bytes: buffer.byteLength,
       is_public: isPublic,
@@ -81,15 +85,17 @@ export class FilesService {
 
   async listFiles(userId: string, query: FileListQuery, userRole: string): Promise<PublicFile[]> {
     const isPublic = query.is_public === 'true' ? true : query.is_public === 'false' ? false : undefined
-    // managers and admins see all files; viewers see only their own
     const filterByUser = userRole === 'viewer' ? userId : ''
     const records = await this.repo.findAll(filterByUser, isPublic)
     return records.map((r) => this.toPublicFile(r))
   }
 
-  async getFile(id: string): Promise<PublicFile> {
+  async getFile(id: string, userId: string, userRole: string): Promise<PublicFile> {
     const file = await this.repo.findById(id)
     if (!file) throw AppError.notFound('Dosya')
+    if (userRole === 'viewer' && file.uploaded_by !== userId) {
+      throw AppError.forbidden()
+    }
     return this.toPublicFile(file)
   }
 
@@ -121,7 +127,17 @@ export class FilesService {
     return this.repo.findRelations(entityType, entityId)
   }
 
-  async deleteRelation(id: string): Promise<void> {
+  async deleteRelation(id: string, userId: string, userRole: string): Promise<void> {
+    const relation = await this.repo.findRelationById(id)
+    if (!relation) throw AppError.notFound('Dosya ilişkisi')
+
+    if (userRole === 'viewer') {
+      const file = await this.repo.findById(relation.file_id)
+      if (!file || file.uploaded_by !== userId) {
+        throw AppError.forbidden()
+      }
+    }
+
     await this.repo.deleteRelation(id)
   }
 }

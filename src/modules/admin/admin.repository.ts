@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { RoleRecord, AuditLogRecord, AdminUserView } from './admin.types.js'
 import type { UserListQuery, AuditLogQuery } from './admin.schema.js'
 import { AppError } from '@/shared/errors/index.js'
+import { decodeCursor } from '@/shared/utils/pagination.js'
 
 export class AdminRepository {
   constructor(private readonly db: SupabaseClient) {}
@@ -15,6 +16,11 @@ export class AdminRepository {
       .order('created_at', { ascending: false })
       .limit(query.limit)
 
+    if (query.cursor) {
+      const decoded = decodeCursor(query.cursor)
+      if (decoded?.sort_value) q = q.lt('created_at', decoded.sort_value)
+    }
+
     if (query.include_deleted !== 'true') q = q.is('deleted_at', null)
     if (query.is_active === 'true') q = q.eq('is_active', true)
     if (query.is_active === 'false') q = q.eq('is_active', false)
@@ -25,7 +31,6 @@ export class AdminRepository {
     const users = data ?? []
     const userIds = users.map((u: { id: string }) => u.id)
 
-    // fetch roles for all users in one query
     let rolesMap: Record<string, string[]> = {}
     if (userIds.length > 0) {
       const { data: urData } = await this.db
@@ -33,14 +38,14 @@ export class AdminRepository {
         .select('user_id, roles(name)')
         .in('user_id', userIds)
       if (urData) {
-        for (const row of urData as Array<{ user_id: string; roles: { name: string } }>) {
+        for (const row of (urData as unknown) as Array<{ user_id: string; roles: { name: string } }>) {
           if (!rolesMap[row.user_id]) rolesMap[row.user_id] = []
           rolesMap[row.user_id]!.push(row.roles.name)
         }
       }
     }
 
-    const items = users.map((u: AdminUserView) => ({ ...u, roles: rolesMap[u.id] ?? [] }))
+    const items = (users as unknown as Array<Omit<AdminUserView, 'roles'>>).map((u) => ({ ...u, roles: rolesMap[u.id] ?? [] }))
     return { items, total: count ?? 0 }
   }
 
@@ -57,7 +62,7 @@ export class AdminRepository {
       .from('user_roles')
       .select('roles(name)')
       .eq('user_id', id)
-    const roles = (urData ?? []).map((r: { roles: { name: string } }) => r.roles.name)
+    const roles = ((urData ?? []) as unknown as Array<{ roles: { name: string } }>).map((r) => r.roles.name)
 
     return { ...(data as Omit<AdminUserView, 'roles'>), roles }
   }
@@ -81,6 +86,7 @@ export class AdminRepository {
       .from('users')
       .update({ deleted_at: null, is_active: true })
       .eq('id', id)
+      .not('deleted_at', 'is', null)
     if (error) throw new AppError(error.message, 'DATABASE_ERROR', 500)
   }
 
@@ -125,6 +131,11 @@ export class AdminRepository {
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .limit(query.limit)
+
+    if (query.cursor) {
+      const decoded = decodeCursor(query.cursor)
+      if (decoded?.sort_value) q = q.lt('created_at', decoded.sort_value)
+    }
 
     if (query.user_id) q = q.eq('user_id', query.user_id)
     if (query.event_category) q = q.eq('event_category', query.event_category)

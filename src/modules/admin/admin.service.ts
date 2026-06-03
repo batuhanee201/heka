@@ -50,6 +50,9 @@ export class AdminService {
   }
 
   async restoreUser(id: string): Promise<void> {
+    const existing = await this.repo.findUserById(id)
+    if (!existing) throw AppError.notFound('Kullanıcı')
+    if (!existing.deleted_at) throw new AppError('Kullanıcı zaten aktif', 'CONFLICT', 409)
     await this.repo.restoreUser(id)
   }
 

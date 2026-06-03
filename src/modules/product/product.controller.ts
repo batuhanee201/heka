@@ -6,7 +6,8 @@ import {
   CreateProductSchema, UpdateProductSchema,
   ProductListQuerySchema,
 } from './product.schema.js'
-import { sendSuccess, sendCreated, sendNoContent, sendError } from '@/shared/utils/response.js'
+import { sendSuccess, sendCreated, sendNoContent, sendError, sendList } from '@/shared/utils/response.js'
+import { buildPaginationMeta } from '@/shared/utils/pagination.js'
 import { AppError } from '@/shared/errors/index.js'
 
 type IdParam = { Params: { id: string } }
@@ -17,15 +18,15 @@ export class ProductController {
   // ── Brands ─────────────────────────────────────────────────────────────
 
   listBrands = async (req: FastifyRequest, reply: FastifyReply) => {
-    const onlyActive = (req.query as Record<string, string>)['active'] === 'true'
-    const brands = await this.svc.listBrands(onlyActive)
-    sendSuccess(reply, { brands })
+    try {
+      const onlyActive = (req.query as Record<string, string>)['active'] === 'true'
+      sendSuccess(reply, { brands: await this.svc.listBrands(onlyActive) })
+    } catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 
   getBrand = async (req: FastifyRequest<IdParam>, reply: FastifyReply) => {
-    try {
-      sendSuccess(reply, { brand: await this.svc.getBrand(req.params.id) })
-    } catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
+    try { sendSuccess(reply, { brand: await this.svc.getBrand(req.params.id) }) }
+    catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 
   createBrand = async (req: FastifyRequest, reply: FastifyReply) => {
@@ -50,8 +51,10 @@ export class ProductController {
   // ── Categories ─────────────────────────────────────────────────────────
 
   listCategories = async (req: FastifyRequest, reply: FastifyReply) => {
-    const onlyActive = (req.query as Record<string, string>)['active'] === 'true'
-    sendSuccess(reply, { categories: await this.svc.listCategories(onlyActive) })
+    try {
+      const onlyActive = (req.query as Record<string, string>)['active'] === 'true'
+      sendSuccess(reply, { categories: await this.svc.listCategories(onlyActive) })
+    } catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 
   getCategory = async (req: FastifyRequest<IdParam>, reply: FastifyReply) => {
@@ -83,8 +86,11 @@ export class ProductController {
   listProducts = async (req: FastifyRequest, reply: FastifyReply) => {
     const p = ProductListQuerySchema.safeParse(req.query)
     if (!p.success) { sendError(reply, AppError.validation('Geçersiz sorgu parametreleri', p.error.flatten())); return }
-    const result = await this.svc.listProducts(p.data)
-    sendSuccess(reply, { products: result.items, total: result.total })
+    try {
+      const result = await this.svc.listProducts(p.data)
+      const pagination = buildPaginationMeta(result.total, p.data.limit, result.items, 'created_at')
+      sendList(reply, result.items, pagination)
+    } catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 
   getProduct = async (req: FastifyRequest<IdParam>, reply: FastifyReply) => {

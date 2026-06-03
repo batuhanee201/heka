@@ -4,7 +4,8 @@ import {
   UpdateUserSchema, AssignRoleSchema,
   AuditLogQuerySchema, UserListQuerySchema,
 } from './admin.schema.js'
-import { sendSuccess, sendCreated, sendNoContent, sendError } from '@/shared/utils/response.js'
+import { sendSuccess, sendCreated, sendNoContent, sendError, sendList } from '@/shared/utils/response.js'
+import { buildPaginationMeta } from '@/shared/utils/pagination.js'
 import { AppError } from '@/shared/errors/index.js'
 
 type IdParam = { Params: { id: string } }
@@ -18,8 +19,11 @@ export class AdminController {
   listUsers = async (req: FastifyRequest, reply: FastifyReply) => {
     const p = UserListQuerySchema.safeParse(req.query)
     if (!p.success) { sendError(reply, AppError.validation('Geçersiz sorgu', p.error.flatten())); return }
-    const result = await this.svc.listUsers(p.data)
-    sendSuccess(reply, { users: result.items, total: result.total })
+    try {
+      const result = await this.svc.listUsers(p.data)
+      const pagination = buildPaginationMeta(result.total, p.data.limit, result.items, 'created_at')
+      sendList(reply, result.items, pagination)
+    } catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 
   getUser = async (req: FastifyRequest<IdParam>, reply: FastifyReply) => {
@@ -47,7 +51,8 @@ export class AdminController {
   // ── Roles ──────────────────────────────────────────────────────────────
 
   listRoles = async (_req: FastifyRequest, reply: FastifyReply) => {
-    sendSuccess(reply, { roles: await this.svc.listRoles() })
+    try { sendSuccess(reply, { roles: await this.svc.listRoles() }) }
+    catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 
   assignRole = async (req: FastifyRequest<IdParam>, reply: FastifyReply) => {
@@ -67,7 +72,10 @@ export class AdminController {
   listAuditLogs = async (req: FastifyRequest, reply: FastifyReply) => {
     const p = AuditLogQuerySchema.safeParse(req.query)
     if (!p.success) { sendError(reply, AppError.validation('Geçersiz sorgu', p.error.flatten())); return }
-    const result = await this.svc.listAuditLogs(p.data)
-    sendSuccess(reply, { logs: result.items, total: result.total })
+    try {
+      const result = await this.svc.listAuditLogs(p.data)
+      const pagination = buildPaginationMeta(result.total, p.data.limit, result.items, 'created_at')
+      sendList(reply, result.items, pagination)
+    } catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 }

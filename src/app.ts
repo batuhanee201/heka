@@ -9,6 +9,7 @@ import corsPlugin from '@/plugins/cors.js'
 import rateLimitPlugin from '@/plugins/rate-limit.js'
 import authPlugin from '@/plugins/auth.js'
 import multipartPlugin from '@/plugins/multipart.js'
+import swaggerPlugin from '@/plugins/swagger.js'
 
 import { authRoutes } from '@/modules/auth/auth.routes.js'
 import { productRoutes } from '@/modules/product/product.routes.js'
@@ -36,7 +37,8 @@ export async function buildApp() {
     ajv: { customOptions: { removeAdditional: true, coerceTypes: true, useDefaults: true } },
   })
 
-  // Plugins — sıra önemli: rate-limit → cors → supabase → auth → multipart
+  // Plugins — sıra önemli: swagger → rate-limit → cors → supabase → auth → multipart
+  await app.register(swaggerPlugin)
   await app.register(rateLimitPlugin)
   await app.register(corsPlugin)
   await app.register(supabasePlugin)
@@ -47,18 +49,32 @@ export async function buildApp() {
   registerAuditHook(app)
 
   // Global hata işleyici
-  app.setErrorHandler((error, req, reply) => {
-    req.log.error({ err: error }, 'İşlenmeyen hata')
-    if (error.name === 'AppError') {
-      sendError(reply, error as AppError)
-    } else if (error.statusCode) {
-      reply.status(error.statusCode).send({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: error.message },
-      })
-    } else {
-      sendError(reply, AppError.internal())
+  app.setErrorHandler((error: unknown, req, reply) => {
+    if (reply.sent) return
+
+    const err = error as AppError & { statusCode?: number; status?: number }
+    const statusCode = err.statusCode ?? err.status ?? 500
+
+    if (err.name === 'AppError') {
+      return sendError(reply, err)
     }
+
+    if (statusCode === 429) {
+      return reply.status(429).send({
+        success: false,
+        error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Çok fazla istek gönderildi, lütfen bekleyin' },
+      })
+    }
+
+    if (statusCode >= 400 && statusCode < 500) {
+      return reply.status(statusCode).send({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: err.message },
+      })
+    }
+
+    req.log.error({ err }, 'İşlenmeyen hata')
+    return sendError(reply, AppError.internal())
   })
 
   app.setNotFoundHandler((req, reply) => {

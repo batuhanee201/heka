@@ -6,6 +6,7 @@ export interface UserRecord {
   email: string
   phone: Nullable<string>
   full_name: string
+  password_hash: string
   email_verified: boolean
   phone_verified: boolean
   is_active: boolean

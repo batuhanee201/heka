@@ -23,12 +23,14 @@ export class FilesController {
   listFiles = async (req: FastifyRequest, reply: FastifyReply) => {
     const p = FileListQuerySchema.safeParse(req.query)
     if (!p.success) { sendError(reply, AppError.validation('Geçersiz sorgu', p.error.flatten())); return }
-    const files = await this.svc.listFiles(req.userId, p.data, req.userRole)
-    sendSuccess(reply, { files })
+    try {
+      const files = await this.svc.listFiles(req.userId, p.data, req.userRole)
+      sendSuccess(reply, { files })
+    } catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 
   getFile = async (req: FastifyRequest<IdParam>, reply: FastifyReply) => {
-    try { sendSuccess(reply, { file: await this.svc.getFile(req.params.id) }) }
+    try { sendSuccess(reply, { file: await this.svc.getFile(req.params.id, req.userId, req.userRole) }) }
     catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 
@@ -45,13 +47,15 @@ export class FilesController {
   }
 
   listRelations = async (req: FastifyRequest<RelationParam>, reply: FastifyReply) => {
-    const { entityType, entityId } = req.params
-    const relations = await this.svc.listRelations(entityType, entityId)
-    sendSuccess(reply, { relations })
+    try {
+      const { entityType, entityId } = req.params
+      const relations = await this.svc.listRelations(entityType, entityId)
+      sendSuccess(reply, { relations })
+    } catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 
   deleteRelation = async (req: FastifyRequest<IdParam>, reply: FastifyReply) => {
-    try { await this.svc.deleteRelation(req.params.id); sendNoContent(reply) }
+    try { await this.svc.deleteRelation(req.params.id, req.userId, req.userRole); sendNoContent(reply) }
     catch (e) { sendError(reply, e instanceof Error ? e : AppError.internal()) }
   }
 }

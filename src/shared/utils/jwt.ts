@@ -37,7 +37,7 @@ export async function signRefreshToken(userId: string, jti: string): Promise<str
     .sign(secret)
 }
 
-export async function verifyToken<T extends TokenPayload>(token: string): Promise<T> {
+export async function verifyToken<T = TokenPayload>(token: string): Promise<T> {
   try {
     const { payload } = await jwtVerify(token, secret, { algorithms: [ALGORITHM] })
     return payload as unknown as T

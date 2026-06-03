@@ -63,6 +63,13 @@ export class FilesRepository {
     return data as FileRelationRecord
   }
 
+  async findRelationById(id: string): Promise<FileRelationRecord | null> {
+    const { data, error } = await this.db
+      .from('file_relations').select('*').eq('id', id).maybeSingle()
+    if (error) throw new AppError(error.message, 'DATABASE_ERROR', 500)
+    return data as FileRelationRecord | null
+  }
+
   async deleteRelation(id: string): Promise<void> {
     const { error } = await this.db.from('file_relations').delete().eq('id', id)
     if (error) throw new AppError(error.message, 'DATABASE_ERROR', 500)

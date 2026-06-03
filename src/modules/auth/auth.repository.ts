@@ -50,10 +50,11 @@ export class AuthRepository {
   }
 
   async updateLastLogin(userId: string): Promise<void> {
-    await this.db
+    const { error } = await this.db
       .from('users')
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', userId)
+    if (error) throw new AppError(error.message, 'DATABASE_ERROR', 500)
   }
 
   async getUserRole(userId: string): Promise<string> {
@@ -98,27 +99,30 @@ export class AuthRepository {
   }
 
   async revokeSession(sessionId: string): Promise<void> {
-    await this.db
+    const { error } = await this.db
       .from('sessions')
       .update({ revoked_at: new Date().toISOString() })
       .eq('id', sessionId)
+    if (error) throw new AppError(error.message, 'DATABASE_ERROR', 500)
   }
 
   async revokeAllUserSessions(userId: string): Promise<void> {
-    await this.db
+    const { error } = await this.db
       .from('sessions')
       .update({ revoked_at: new Date().toISOString() })
       .eq('user_id', userId)
       .is('revoked_at', null)
+    if (error) throw new AppError(error.message, 'DATABASE_ERROR', 500)
   }
 
   async updateSessionActivity(sessionId: string, newTokenHash: string): Promise<void> {
-    await this.db
+    const { error } = await this.db
       .from('sessions')
       .update({
         refresh_token_hash: newTokenHash,
         last_active_at: new Date().toISOString(),
       })
       .eq('id', sessionId)
+    if (error) throw new AppError(error.message, 'DATABASE_ERROR', 500)
   }
 }

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ProductRecord, TechnicalDetailsRecord, DisplayRecord, ProductDetail } from './product.types.js'
 import type { ProductListQuery } from './product.schema.js'
 import { AppError } from '@/shared/errors/index.js'
+import { decodeCursor } from '@/shared/utils/pagination.js'
 
 const PRODUCT_WITH_DETAILS = `
   *,
@@ -19,6 +20,11 @@ export class ProductRepository {
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(query.limit)
+
+    if (query.cursor) {
+      const decoded = decodeCursor(query.cursor)
+      if (decoded?.sort_value) q = q.lt('created_at', decoded.sort_value)
+    }
 
     if (query.status) q = q.eq('status', query.status)
     if (query.brand_id) q = q.eq('brand_id', query.brand_id)

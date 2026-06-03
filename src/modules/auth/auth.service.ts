@@ -15,7 +15,9 @@ function parseDuration(str: string): number {
   const unit = str.slice(-1)
   const value = parseInt(str.slice(0, -1), 10)
   const map: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }
-  return value * (map[unit] ?? 60_000)
+  const multiplier = map[unit]
+  if (!multiplier) throw new Error(`Geçersiz süre birimi: ${str}`)
+  return value * multiplier
 }
 
 function parseDurationSeconds(str: string): number {

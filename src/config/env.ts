@@ -12,8 +12,8 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 
   JWT_SECRET: z.string().min(32),
-  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
+  JWT_ACCESS_EXPIRES_IN: z.string().regex(/^\d+[smhd]$/, 'Format: {n}{s|m|h|d}').default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().regex(/^\d+[smhd]$/, 'Format: {n}{s|m|h|d}').default('30d'),
 
   ARGON2_MEMORY_COST: z.coerce.number().int().positive().default(65536),
   ARGON2_TIME_COST: z.coerce.number().int().positive().default(3),

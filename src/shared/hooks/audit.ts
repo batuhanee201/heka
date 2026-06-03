@@ -16,28 +16,34 @@ declare module 'fastify' {
 
 export function registerAuditHook(app: FastifyInstance): void {
   app.addHook('onResponse', async (req: FastifyRequest, reply: FastifyReply) => {
-    const ctx = req.auditContext
-    if (!ctx || !req.userId) return
+    if (!req.userId) return
 
+    const ctx = req.auditContext
     const statusCode = reply.statusCode
-    if (statusCode >= 400) return
+    const isFailure = statusCode >= 400
+    const isSecurityEvent = statusCode === 401 || statusCode === 403
+
+    // Skip non-security failures without explicit audit context
+    if (isFailure && !isSecurityEvent && !ctx) return
+    if (!isFailure && !ctx) return
 
     try {
       await app.supabase.from('audit_logs').insert({
         user_id: req.userId,
-        action: ctx.action,
-        event_category: ctx.category,
-        entity_type: ctx.entity_type ?? null,
-        entity_id: ctx.entity_id ?? null,
+        action: ctx?.action ?? `${req.method} ${req.url}`,
+        event_category: ctx?.category ?? (isSecurityEvent ? 'security' : 'system'),
+        entity_type: ctx?.entity_type ?? null,
+        entity_id: ctx?.entity_id ?? null,
         metadata: {
-          ...ctx.metadata,
+          ...ctx?.metadata,
           ip: req.ip,
           user_agent: req.headers['user-agent'],
           status_code: statusCode,
+          success: !isFailure,
         },
       })
     } catch {
-      req.log.warn({ action: ctx.action }, 'Audit log yazılamadı')
+      req.log.warn({ action: ctx?.action }, 'Audit log yazılamadı')
     }
   })
 }
